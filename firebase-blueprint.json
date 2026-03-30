@@ -1,0 +1,104 @@
+{
+  "entities": {
+    "GroceryItem": {
+      "title": "Grocery Item",
+      "description": "An item on the family grocery list.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "description": "Name of the item." },
+        "category": { "type": "string", "description": "Category (e.g., Produce, Dairy)." },
+        "checked": { "type": "boolean", "description": "Whether the item is checked off." },
+        "aisleLocation": {
+          "type": "object",
+          "properties": {
+            "aisle": { "type": "string" },
+            "bay": { "type": "string" },
+            "shelf": { "type": "string" }
+          }
+        },
+        "stockLevel": { "type": "string", "enum": ["HIGH", "LOW", "TEMPORARILY_OUT_OF_STOCK"] },
+        "addedBy": { "type": "string", "description": "UID of the user who added the item." },
+        "timestamp": { "type": "string", "format": "date-time", "description": "When the item was added." }
+      },
+      "required": ["name", "checked", "addedBy", "timestamp"]
+    },
+    "Bill": {
+      "title": "Bill",
+      "description": "A recurring or one-time bill.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "description": "Name of the bill." },
+        "dueDate": { "type": "string", "format": "date", "description": "Next due date." },
+        "amount": { "type": "number", "description": "Amount due." },
+        "account": { "type": "string", "description": "Account it's paid from." },
+        "recurring": { "type": "boolean", "description": "Whether it's a recurring bill." },
+        "frequency": { "type": "string", "enum": ["WEEKLY", "BIWEEKLY", "MONTHLY", "ANNUALLY"] },
+        "autopay": { "type": "boolean", "description": "Whether the bill is set to autopay." },
+        "streamId": { "type": "string", "description": "Unique identifier for recurring stream." },
+        "category": { "type": "string", "description": "Personal finance category." },
+        "status": { "type": "string", "enum": ["pending", "paid"], "description": "Payment status." },
+        "addedBy": { "type": "string", "description": "UID of the user who added the bill." },
+        "timestamp": { "type": "string", "format": "date-time", "description": "When the bill was created." }
+      },
+      "required": ["name", "dueDate", "amount", "account", "addedBy", "timestamp", "status"]
+    },
+    "Receipt": {
+      "title": "Receipt",
+      "description": "A scanned grocery receipt.",
+      "type": "object",
+      "properties": {
+        "store": { "type": "string", "description": "Store name (e.g., Kroger)." },
+        "merchantName": { "type": "string", "description": "Enriched merchant name." },
+        "date": { "type": "string", "format": "date", "description": "Date of purchase." },
+        "total": { "type": "number", "description": "Total amount." },
+        "category": { "type": "string", "description": "Personal finance category." },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string" },
+              "price": { "type": "number" },
+              "quantity": { "type": "number" },
+              "isPersonal": { "type": "boolean", "description": "Whether this item is personal spending vs family budget." }
+            }
+          }
+        },
+        "scannedBy": { "type": "string", "description": "UID of the user who scanned it." },
+        "timestamp": { "type": "string", "format": "date-time", "description": "When it was scanned." }
+      },
+      "required": ["store", "date", "total", "scannedBy", "timestamp"]
+    },
+    "PriceHistory": {
+      "title": "Price History",
+      "description": "Historical price data for a specific item to calculate Personal CPI.",
+      "type": "object",
+      "properties": {
+        "itemName": { "type": "string" },
+        "unitPrice": { "type": "number" },
+        "date": { "type": "string", "format": "date" },
+        "store": { "type": "string" }
+      },
+      "required": ["itemName", "unitPrice", "date", "store"]
+    },
+    "User": {
+      "title": "User",
+      "description": "User profile and settings.",
+      "type": "object",
+      "properties": {
+        "displayName": { "type": "string" },
+        "email": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "krogerPoints": { "type": "number", "description": "Family Kroger points balance." },
+        "loyaltyCardNumber": { "type": "string", "description": "10-13 digit loyalty card number." }
+      },
+      "required": ["email"]
+    }
+  },
+  "firestore": {
+    "/grocery_items/{itemId}": { "schema": "GroceryItem", "description": "Collection of grocery items." },
+    "/bills/{billId}": { "schema": "Bill", "description": "Collection of bills." },
+    "/receipts/{receiptId}": { "schema": "Receipt", "description": "Collection of scanned receipts." },
+    "/users/{userId}": { "schema": "User", "description": "User profiles." }
+  }
+}

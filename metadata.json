@@ -1,0 +1,5 @@
+{
+  "name": "Family Hub",
+  "description": "A family organizer for grocery lists, bill tracking, and receipt scanning with Kroger points integration.",
+  "requestFramePermissions": ["camera"]
+}

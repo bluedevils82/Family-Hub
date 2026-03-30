@@ -1,0 +1,168 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users
+    // Document ID: userId (UID)
+    // Fields:
+    //   - displayName: string (optional)
+    //   - email: string (required)
+    //   - photoURL: string (optional)
+    //   - krogerPoints: number (optional)
+    //
+    // Collection: grocery_items
+    // Document ID: itemId (auto-generated)
+    // Fields:
+    //   - name: string (required, min 1, max 100)
+    //   - category: string (optional)
+    //   - checked: boolean (required)
+    //   - addedBy: string (required, UID)
+    //   - timestamp: timestamp (required)
+    //
+    // Collection: bills
+    // Document ID: billId (auto-generated)
+    // Fields:
+    //   - name: string (required, min 1, max 100)
+    //   - dueDate: string (required, ISO 8601 date)
+    //   - amount: number (required, positive)
+    //   - account: string (required)
+    //   - recurring: boolean (required)
+    //   - addedBy: string (required, UID)
+    //   - timestamp: timestamp (required)
+    //
+    // Collection: receipts
+    // Document ID: receiptId (auto-generated)
+    // Fields:
+    //   - store: string (required)
+    //   - date: string (required, ISO 8601 date)
+    //   - total: number (required, positive)
+    //   - items: list (optional, max 100)
+    //   - scannedBy: string (required, UID)
+    //   - timestamp: timestamp (required)
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isValidEmail(email) {
+      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    function isValidDate(dateStr) {
+      return dateStr is string && dateStr.matches("^\\d{4}-\\d{2}-\\d{2}$");
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['email']) &&
+             isValidEmail(data.email) &&
+             (!('displayName' in data) || data.displayName is string) &&
+             (!('photoURL' in data) || data.photoURL is string) &&
+             (!('krogerPoints' in data) || data.krogerPoints is number) &&
+             (!('loyaltyCardNumber' in data) || (data.loyaltyCardNumber is string && data.loyaltyCardNumber.matches("^\\d{10,13}$")));
+    }
+
+    function isValidGroceryItem(data) {
+      return data.keys().hasAll(['name', 'checked', 'addedBy', 'timestamp']) &&
+             data.name is string && data.name.size() > 0 && data.name.size() <= 100 &&
+             data.checked is bool &&
+             data.addedBy == request.auth.uid &&
+             data.timestamp is timestamp &&
+             (!('stockLevel' in data) || data.stockLevel in ['HIGH', 'LOW', 'TEMPORARILY_OUT_OF_STOCK']) &&
+             (!('aisleLocation' in data) || (data.aisleLocation is map));
+    }
+
+    function isValidBill(data) {
+      return data.keys().hasAll(['name', 'dueDate', 'amount', 'account', 'recurring', 'addedBy', 'timestamp', 'status']) &&
+             data.name is string && data.name.size() > 0 && data.name.size() <= 100 &&
+             isValidDate(data.dueDate) &&
+             data.amount is number && data.amount >= 0 &&
+             data.account is string &&
+             data.recurring is bool &&
+             data.status in ['pending', 'paid'] &&
+             data.addedBy == request.auth.uid &&
+             data.timestamp is timestamp &&
+             (!('frequency' in data) || data.frequency in ['WEEKLY', 'BIWEEKLY', 'MONTHLY', 'ANNUALLY']) &&
+             (!('autopay' in data) || data.autopay is bool) &&
+             (!('streamId' in data) || data.streamId is string) &&
+             (!('category' in data) || data.category is string);
+    }
+
+    function isValidReceipt(data) {
+      return data.keys().hasAll(['store', 'date', 'total', 'scannedBy', 'timestamp']) &&
+             data.store is string &&
+             isValidDate(data.date) &&
+             data.total is number && data.total >= 0 &&
+             data.scannedBy == request.auth.uid &&
+             data.timestamp is timestamp &&
+             (!('merchantName' in data) || data.merchantName is string) &&
+             (!('category' in data) || data.category is string) &&
+             (!('items' in data) || (data.items is list && data.items.size() <= 100));
+    }
+
+    function isValidPriceHistory(data) {
+      return data.keys().hasAll(['itemName', 'unitPrice', 'date', 'store']) &&
+             data.itemName is string &&
+             data.unitPrice is number &&
+             isValidDate(data.date) &&
+             data.store is string;
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow create: if isOwner(userId) && isValidUser(request.resource.data);
+      allow update: if isOwner(userId) && isValidUser(request.resource.data);
+    }
+
+    match /grocery_items/{itemId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isValidGroceryItem(request.resource.data);
+      allow update: if isAuthenticated() && isValidGroceryItem(request.resource.data);
+      allow delete: if isAuthenticated();
+    }
+
+    match /bills/{billId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isValidBill(request.resource.data);
+      allow update: if isAuthenticated() && isValidBill(request.resource.data);
+      allow delete: if isAuthenticated();
+    }
+
+    match /receipts/{receiptId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isValidReceipt(request.resource.data);
+      allow update: if isAuthenticated() && isValidReceipt(request.resource.data);
+      allow delete: if isAuthenticated();
+    }
+
+    match /price_history/{historyId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isValidPriceHistory(request.resource.data);
+    }
+
+    // Default deny
+    match /{path=**} {
+      allow read, write: if false;
+    }
+  }
+}

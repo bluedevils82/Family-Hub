@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import { db, auth } from '../firebase';
 import { collection, addDoc, onSnapshot, query, orderBy, limit, serverTimestamp } from 'firebase/firestore';
 import { Camera, Upload, Loader2, Receipt as ReceiptIcon, History, TrendingUp, DollarSign } from 'lucide-react';
-import { GoogleGenAI } from '@google/genai';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface Receipt {
@@ -54,6 +53,8 @@ export default function ReceiptScanner() {
   };
 
   const scanReceipt = async (base64Data: string) => {
+    // Loaded on first scan so the AI client is not part of the initial download.
+    const { GoogleGenAI } = await import('@google/genai');
     const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
     const model = ai.models.generateContent({
       model: 'gemini-3-flash-preview',

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import { auth } from './firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import Auth from './components/Auth';
@@ -6,7 +6,9 @@ import GroceryList from './components/GroceryList';
 import BillTracker from './components/BillTracker';
 import ReceiptScanner from './components/ReceiptScanner';
 import BillAlerts from './components/BillAlerts';
-import SpendingTrends from './components/SpendingTrends';
+
+// The charting library is the largest dependency; load it only once someone is signed in.
+const SpendingTrends = lazy(() => import('./components/SpendingTrends'));
 import { LayoutDashboard, ShoppingBasket, CreditCard, Receipt as ReceiptIcon, Home, Menu, X, Bell, TrendingUp } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -54,7 +56,9 @@ export default function App() {
             <BillAlerts />
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <div className="space-y-6">
-                <SpendingTrends />
+                <Suspense fallback={<div className="h-64 rounded-2xl bg-white border border-gray-100 animate-pulse" aria-hidden="true" />}>
+                  <SpendingTrends />
+                </Suspense>
                 <GroceryList />
               </div>
               <div className="space-y-6">
@@ -83,7 +87,7 @@ export default function App() {
           </div>
           <span className="font-bold text-lg tracking-tight">Family Hub</span>
         </div>
-        <button onClick={() => setIsSidebarOpen(true)} className="p-2 text-gray-500">
+        <button onClick={() => setIsSidebarOpen(true)} className="p-2 text-gray-500" aria-label="Open menu">
           <Menu size={24} />
         </button>
       </header>
@@ -132,6 +136,7 @@ export default function App() {
           <button 
             onClick={() => setIsSidebarOpen(false)}
             className="lg:hidden absolute top-4 right-4 p-2 text-gray-400"
+            aria-label="Close menu"
           >
             <X size={24} />
           </button>
